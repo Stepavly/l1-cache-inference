@@ -8,7 +8,7 @@
 static const size_t BIG_MEMORY_SIZE = size_t(1) << 30;
 static const size_t MAX_ASSOC = 16;
 
-char *cache_data;
+char cache_data[BIG_MEMORY_SIZE];
 
 #pragma optimize( "", off )
 __attribute__ ((optimize(0))) int64_t measure_time(int stride, int s) {
@@ -92,7 +92,7 @@ int infer_line_size(int cache_size, int cache_assoc) {
     int first_jump = -1;
     for (int S = 1; S <= 1024; S *= 2) {
       auto curr_time = measure_time(cache_size / cache_assoc + line_size, S + 1);
-      if ((curr_time - prev_time) * 10 > curr_time && first_jump <= 0) {
+      if ((curr_time - prev_time) * 10 > curr_time && first_jump == -1) {
         first_jump = S;
       }
       prev_time = curr_time;
@@ -107,13 +107,12 @@ int infer_line_size(int cache_size, int cache_assoc) {
 }
 
 int main() {
+  for (size_t i = 0; i < BIG_MEMORY_SIZE; i++) {
+    cache_data[i] = (char) std::rand();
+  }
+
   std::cout << "Staring inference of L1 cache characteristics" << std::endl;
 
-  cache_data = (char*) malloc(BIG_MEMORY_SIZE * sizeof(char));
-  if (cache_data == nullptr) {
-    std::cout << "Failed to allocate array";
-    return 1;
-  }
   auto [all_possible_assocs, possible_cache_size] = calculate_possible_cache_size();
   auto [cache_size, cache_assoc] = infer_size_and_assoc(all_possible_assocs, possible_cache_size);
 
@@ -123,7 +122,5 @@ int main() {
             << "Size = " << cache_size << std::endl
             << "Associativity = " << cache_assoc << std::endl
             << "Line size = " << cache_line_size << std::endl;
-
-  free(cache_data);
   return 0;
 }
